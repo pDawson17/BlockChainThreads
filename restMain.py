@@ -8,7 +8,12 @@ from blockChain import Blockchain
 
 app = Flask(__name__)
 
-#create address for node on Port 5000
+
+##TODO
+#add sorting function and put it with one of the update nodes
+#add route to increment a comment, figure out how to get index from button
+#add function to allow poeple to see others' comments
+
 nodeAddress = str(uuid4()).replace('-', '') #is node address on
 
 blockchain = Blockchain()
@@ -35,6 +40,11 @@ def getChain():
                 "length": len(blockchain.chain)}
     return jsonify(response), 200
 
+@app.route("/getPendingComments", methods = ["GET"])
+def getPendingComments():
+    response = {"comments": blockchain.comments}
+    return jsonify(response), 200
+
 @app.route("/isValid", methods=["GET"])
 def isValid():
     isValid = blockchain.isChainValid(blockchain.chain)
@@ -47,10 +57,10 @@ def isValid():
 @app.route("/addCommentReq", methods = ["POST"])
 def addCommentReq():
       json = request.get_json(force = True)
-      transactionKeys = ["comment"]
-      if not all (key in json for key in transactionKeys): #a lil confused
+      commentKeys = ["comment", "score","link"]
+      if not all (key in json for key in commentKeys): #a lil confused
           return "som elements of the transaction are missing", 400
-      index = blockchain.addComment(json['comment'])
+      index = blockchain.addComment(json['comment'], json['score'], json['link'])
       response = {'message': f'comment added to block {index}'}
       return jsonify(response), 201
 

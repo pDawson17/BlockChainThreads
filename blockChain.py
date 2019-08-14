@@ -11,8 +11,8 @@ from urllib.parse import urlparse
 #building a block!
 ## TODO:
 # 1) figure out how comments are shared on chain: make a public queue
-# 2) create function allowing upvotes
-# 3)
+# 2) create function allowing upvotes - possibly just move a comment up a space if it has more
+
 class Blockchain:
 
     def __init__(self):
@@ -33,9 +33,11 @@ class Blockchain:
         return block
         #block contains index, time, proof, prevhash in dict
 
-    def addComment(self, comment):
+    def addComment(self, comment, score, link):
         self.comments.append({"comment": comment,
-                              "timestamp": str(datetime.datetime.now())})
+                              "timestamp": str(datetime.datetime.now()),
+                              "score": score,
+                              "link": link})
         prevBlock = self.getPrevBlock()
         return prevBlock['index'] +1 #not sure why +1
 
@@ -95,4 +97,9 @@ class Blockchain:
             self.chain = longestChain
             return True
         return False
-#mining a block
+
+    def incrementBlock(self, index):
+        self.comments[index]['score']+=1
+        if index != 0 and self.comments[index]['score'] > self.comments[index-1]['score']:
+            self.comments[index-1], self.comments[index] = self.comments[index], self.comments[index-1]
+            #will work for now, will need realish sorting later
