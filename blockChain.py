@@ -12,7 +12,7 @@ from urllib.parse import urlparse
 ## TODO:
 # 1) figure out how comments are shared on chain: make a public queue
 # 2) create function allowing upvotes - possibly just move a comment up a space if it has more
-
+# 3) create getLink method where we go to the first element in the lists' link - or create one
 class Blockchain:
 
     def __init__(self):
@@ -21,6 +21,8 @@ class Blockchain:
         #each comment needs comment, timestamp and score
         self.createBlock(proof = 1, prevHash = '0', data="start") #using sha256 for hash
         self.nodes = set()
+        self.nextLink = ''
+        self.links = set()
 
     def createBlock(self, proof, prevHash, data):
         block = {"index": len(self.chain)+1,
@@ -28,8 +30,12 @@ class Blockchain:
                  "proof": proof,
                  "prevHash": prevHash,
                  'comments': self.comments}
-        self.comments = []
-        self.chain.append(block)
+        if len(self.comments) > 0:
+            if not (self.comments[0]['link'] in self.links):
+                self.links.add(self.comments[0]['link'])
+                #next we would create link!!
+            self.chain.append(block)
+
         return block
         #block contains index, time, proof, prevhash in dict
 

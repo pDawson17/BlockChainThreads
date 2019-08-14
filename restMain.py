@@ -24,7 +24,7 @@ def mineBlock():
     prevProof = prevBlock['proof']
     proof = blockchain.proofOfWork(prevProof)
     prevHash = blockchain.hash(prevBlock)
-    blockchain.addComment(comment = "Adding")
+    #blockchain.addComment(comment = "s", score = 0, link = "ok")
     block = blockchain.createBlock(proof, prevHash, data="figure out later")
     response = {"message": "you mined a blocc",
                 "index": block["index"],
@@ -37,7 +37,8 @@ def mineBlock():
 @app.route("/getChain", methods = ["GET"])
 def getChain():
     response = {"chain": blockchain.chain,
-                "length": len(blockchain.chain)}
+                "length": len(blockchain.chain),
+                }
     return jsonify(response), 200
 
 @app.route("/getPendingComments", methods = ["GET"])
