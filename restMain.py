@@ -8,7 +8,6 @@ from blockChain import Blockchain
 
 app = Flask(__name__)
 
-
 ##TODO
 #add sorting function and put it with one of the update nodes
 #add route to increment a comment, figure out how to get index from button
@@ -16,16 +15,16 @@ app = Flask(__name__)
 
 nodeAddress = str(uuid4()).replace('-', '') #is node address on
 
-blockchain = Blockchain()
+blockchain = Blockchain('init')
 
-@app.route('/mineBlock', methods=["GET"])
+@app.route('/mineBlock', methods=["GET"]) #mineblock for blocks along same chain
 def mineBlock():
     prevBlock = blockchain.getPrevBlock()
     prevProof = prevBlock['proof']
     proof = blockchain.proofOfWork(prevProof)
     prevHash = blockchain.hash(prevBlock)
     #blockchain.addComment(comment = "s", score = 0, link = "ok")
-    block = blockchain.createBlock(proof, prevHash, data="figure out later")
+    block = blockchain.createBlock(proof, prevHash, name = prevBlock['name'])
     response = {"message": "you mined a blocc",
                 "index": block["index"],
                 "timestamp": block["timestamp"],
@@ -36,8 +35,8 @@ def mineBlock():
 
 @app.route("/getChain", methods = ["GET"])
 def getChain():
-    response = {"chain": blockchain.chain,
-                "length": len(blockchain.chain),
+    response = {"chain": blockchain.links[blockchain.name],
+                "length": len(blockchain.links[blockchain.name]),
                 }
     return jsonify(response), 200
 
@@ -48,13 +47,31 @@ def getPendingComments():
 
 @app.route("/isValid", methods=["GET"])
 def isValid():
-    isValid = blockchain.isChainValid(blockchain.chain)
+    isValid = blockchain.isChainValid(blockchain.links[blockchain.name])
     if(isValid):
         response = {"message": "valid"}
     else:
         response = {"message": "invalid"}
     return jsonify(response), 200
 
+@app.route("/replaceChain", methods=["GET"])
+def replaceChain():
+    isChainReplaced = blockchain.replaceChain()
+    if isChainReplaced:
+        response = {"message": "updating chain",
+                    "newChain": blockchain.links[blockchain.name]}
+    else:
+        response = {"message": "chain is longest, no update",
+                    "newChain": blockchain.links[blockchain.name]}
+    return jsonify(response), 200
+
+@app.route("/switchChain", methods=["GET"])
+def switchChain():
+    blockchain.name = blockchain.comments[0]['link']
+    response = {"message": f"switching to {blockchain.comments[0]['link']}"}
+    return jsonify(response), 200
+
+##*************POSTS BELOW
 @app.route("/addCommentReq", methods = ["POST"])
 def addCommentReq():
       json = request.get_json(force = True)
@@ -76,17 +93,6 @@ def connectNode():
         blockchain.addNode(node)
     response = {"message": "nodes added",
                 "totalNodes": list(blockchain.nodes)}
-    return jsonify(response), 200
-
-@app.route("/replaceChain", methods=["GET"])
-def replaceChain():
-    isChainReplaced = blockchain.replaceChain()
-    if isChainReplaced:
-        response = {"message": "updating chain",
-                    "newChain": blockchain.chain}
-    else:
-        response = {"message": "chain is longest, no update",
-                    "newChain": blockchain.chain}
     return jsonify(response), 200
 
 def runApp(portNum):
