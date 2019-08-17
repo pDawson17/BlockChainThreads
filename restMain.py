@@ -12,11 +12,12 @@ app = Flask(__name__)
 #add sorting function and put it with one of the update nodes
 #add route to increment a comment, figure out how to get index from button
 #add function to allow poeple to see others' comments
-
+#figure out how to clear comments and still do switchChain
 nodeAddress = str(uuid4()).replace('-', '') #is node address on
 
 blockchain = Blockchain('init')
 
+##*****************GET BELOW
 @app.route('/mineBlock', methods=["GET"]) #mineblock for blocks along same chain
 def mineBlock():
     prevBlock = blockchain.getPrevBlock()
@@ -67,25 +68,27 @@ def replaceChain():
 
 @app.route("/switchChain", methods=["GET"])
 def switchChain():
-    blockchain.name = blockchain.comments[0]['link']
-    response = {"message": f"switching to {blockchain.comments[0]['link']}"}
+    #need to recieve index of currBlocc
+    json = request.get_json(force = True)
+    index = json['index']
+    blockchain.name = blockchain.links[blockchain.name][index]['comments'][0]['link']
+    response = {"message": f"switching to {blockchain.name}"}
     return jsonify(response), 200
 
 ##*************POSTS BELOW
 @app.route("/addCommentReq", methods = ["POST"])
 def addCommentReq():
       json = request.get_json(force = True)
-      commentKeys = ["comment", "score","link"]
+      commentKeys = ["comment", "score","link","origin"]
       if not all (key in json for key in commentKeys): #a lil confused
           return "som elements of the transaction are missing", 400
-      index = blockchain.addComment(json['comment'], json['score'], json['link'])
+      index = blockchain.addComment(json['comment'], json['score'], json['link'],json['origin'])
       response = {'message': f'comment added to block {index}'}
       return jsonify(response), 201
 
 @app.route("/connectNode", methods=["POST"])
 def connectNode():
     json = request.get_json(force = True)
-    print(json)
     nodes = json['nodes']
     if nodes is None:
         return "no nodes", 400
@@ -93,6 +96,25 @@ def connectNode():
         blockchain.addNode(node)
     response = {"message": "nodes added",
                 "totalNodes": list(blockchain.nodes)}
+    return jsonify(response), 200
+
+@app.route("/upvoteComment", methods=["POST"])
+def upvoteComment():
+    json = request.get_json(force = True) #receive json input of index of voting
+    #format: {'index': 0}
+    blockchain.upvoteComment(json['index'],json['origin'])
+    response = {"message": f"incremented {json['index']}"}
+    return jsonify(response), 200
+##**************PATCH BELOW
+@app.route("/updateNodes", methods=["PATCH"])
+def updateNodes(): #only called after connectNode has been called
+    updateList = []
+    for chain in blockchain.links:
+        blockchain.name = chain
+        updatedChain = blockchain.replaceChain()
+        if updatedChain:
+            updateList.append(chain)
+    response = {"message": f"updated: {updateList}"}
     return jsonify(response), 200
 
 def runApp(portNum):

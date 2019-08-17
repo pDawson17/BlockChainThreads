@@ -10,18 +10,18 @@ from uuid import uuid4
 from urllib.parse import urlparse
 #building a block!
 ## TODO:
-# 1) figure out how comments are shared on chain: make a public queue
-# 2) create function allowing upvotes - possibly just move a comment up a space if it has more
-# 3) create getLink method where we go to the first element in the lists' link - or create one
-# 4) blockchain.name should be a field held by each block
-# 5) two seperate functions for checking chain integrity; one based on currchain and one on all
-# 6) route to switch chains - probably just update blockchain.name
+# 1) write route that shares comments with all nodes following the connectNode and clearNode call
+#possibly implement one vote per server per block - unsure how imma do that bbut ill figure it out
+# 2) viewBlock - just return a single blocks
+# 3) nextBlock, sideBlock implementation
+# 4) should switchChain take you to top, bottom, or closest timestamp in next chain
+
 class Blockchain:
 
     def __init__(self, name):
         #self.chain = [] #list containing blocks - moved inside of set
         self.name = name #name of current block that you're on
-        self.comments = [] #list pulled from comments API or somethin,
+        self.comments = {name: []} #list pulled from comments API or somethin,
         self.links = {name: []} #self.links[self.name] is now Chain
         #each comment needs comment, timestamp and score
         self.createBlock(proof = 1, prevHash = '0', name = name) #using sha256 for hash
@@ -32,38 +32,56 @@ class Blockchain:
                  "timestamp": str(datetime.datetime.now()),
                  "proof": proof,
                  "prevHash": prevHash,
-                 "comments": self.comments,
-                 "name": name}
+                 "comments": self.comments[name],
+                 "name": name,
+                 "link": "init"}
         self.links[name].append(block)
         return block
 
     def createBlock(self, proof, prevHash, name):
-        #name is name of current block,
+        #name is name of current block
         block = {"index": len(self.links[name])+1,
                  "timestamp": str(datetime.datetime.now()),
                  "proof": proof,
                  "prevHash": prevHash,
-                 'comments': self.comments,
+                 'comments': self.comments[name],
                  "name": name}
-        if len(self.comments) > 0:
-            if not (self.comments[0]['link'] in self.links):
+        if len(self.comments[name]) > 0:
+            if not (self.comments[name][0]['link'] in self.links):
                 curIndex = len(self.links[name])-1
-                self.links[self.comments[0]['link']] = []
+                self.links[self.comments[name][0]['link']] = []
+                self.comments[self.comments[name][0]['link']] = [
+                {"comment": f"First block in {self.comments[name][0]['link']}", "score": 69,"link":None}
+                ]
                 #self.links[(self.comments[0]['link'])] not sure what i meant that to do lol
                 curHash = self.hash(self.links[name][curIndex])
-                newBlock = self.createSubChain(len(self.links), curHash, self.comments[0]['link'])#inital proof coming from length of links
-            self.links[name].append(block)
-        else:
-            self.links[name].append(block)
+                newBlock = self.createSubChain(len(self.links), curHash, self.comments[name][0]['link'])#inital proof coming from length of links
+        self.links[name].append(block)
+        #clear commments that were appended here
         return block
         #block contains index, time, proof, prevhash in dict
 
-    def addComment(self, comment, score, link):
-        self.comments.append({"comment": comment,
+    def addComment(self, comment, score, link, origin):
+        newComment = {"comment": comment,
                               "timestamp": str(datetime.datetime.now()),
                               "score": score,
-                              "link": link})
+                              "link": link}
+        self.comments[self.name].append(newComment)
+        network = self.nodes
         prevBlock = self.getPrevBlock()
+        data = {
+            "comment": comment,
+            "score": score,
+            "link": link,
+            "origin": "False"
+        }
+        #commentData = jsonify(data)
+        #add origin field, should eventually change to where origin has node id
+        if(origin == "True"):
+            for node in network:
+                response1 = requests.post(f"http://{node}/addCommentReq", json=data)
+                if(response1.status_code != 201):
+                    print(f"{node} failed")
         return prevBlock['index'] +1 #not sure why +1
 
     def getPrevBlock(self):
@@ -106,7 +124,7 @@ class Blockchain:
         parsedURL = urlparse(address)
         self.nodes.add(parsedURL.netloc)
 
-    def replaceChain(self):
+    def replaceChain(self): #replaceChain works chain by chain
         network = self.nodes
         longestChain = None
         max_length = len(self.links[self.name])
@@ -123,8 +141,25 @@ class Blockchain:
             return True
         return False
 
-    def incrementBlock(self, index):
-        self.comments[index]['score']+=1
-        if index != 0 and self.comments[index]['score'] > self.comments[index-1]['score']:
-            self.comments[index-1], self.comments[index] = self.comments[index], self.comments[index-1]
+    def upvoteComment(self, index, origin):
+        network = self.nodes
+        self.comments[self.name][index]['score']+=1
+        while index != 0 and self.comments[self.name][index]['score'] > self.comments[self.name][index-1]['score']:
+            self.comments[self.name][index-1], self.comments[self.name][index] = self.comments[self.name][index], self.comments[self.name][index-1]
+            index-=1
             #will work for now, will need realish sorting later
+        if(origin == "True"):
+            for node in network: #updates all comments in network - will eventually need to make a function to match everything up better
+                response1 = requests.post(f"http://{node}/upvoteComment", json={"index":index, "origin": "False"})
+
+    def clearComments(self): #ideally called only after new block created
+        self.comments[self.name].clear()
+
+#    def mergeComments(self): #works on each name level
+#        betwork = self.nodes
+#        for node in network:
+#            response = requests.get(f"http://{node}/getPendingComments")
+#            if response[self.name] != self.comments[self.name]:
+#                for comment in response[self.name]:
+#                    if comment not in self.comments: #rudimentary check if comment exists, something better hopefully later
+#                        self.comments.append(comment)

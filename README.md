@@ -29,6 +29,6 @@ mine block method:
 
 display:
   all messages that have been queued before mining using getPendingComments (returns list of json objects)
-  the current block using getChain
+  the current block using getChain returns list of blocks
 
 eventually add like button for each comment calling a request to like, I havent done that route yet
